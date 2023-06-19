@@ -1,22 +1,60 @@
 # coding:utf-8
+import os
+import random
+
 '''
-定义规则 urls:url列表
+定义规则  urls:url列表
          type：解析方式,取值 regular(正则表达式),xpath(xpath解析),module(自定义第三方模块解析)
          patten：可以是正则表达式,可以是xpath语句不过要和上面的相对应
 '''
-import os, random
+# ip，port，types(0高匿名，1透明)，protocol (0 http,1 https),country(国家),area(省市),updatetime(更新时间) speed(连接速度)
 
-
-'''
-ip，端口，类型(0高匿名，1透明)，protocol(0 http,1 https),country(国家),area(省市),updatetime(更新时间)
- speed(连接速度)
-'''
 parserList = [
+    # 新增稻壳代理和json处理方式
     {
-        'urls': ['http://www.66ip.cn/%s.html' % n for n in ['index'] + list(range(2, 12))],
+        'urls': ['https://www.docip.net/data/free.json?t={}'],
+        'type': 'json',
+        'pattern': '<td>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})</td>[\s\S]*?<td>(\d+)</td>',
+        'position': {'ip': 0, 'port': -1, 'type': -1, 'protocol': 2}
+    },
+    {
+        'urls': [
+            'https://openproxylist.xyz/http.txt',
+            'http://pubproxy.com/api/proxy?limit=3&format=txt&http=true&type=https',
+            'https://www.proxy-list.download/api/v1/get?type=https',
+            'https://raw.githubusercontent.com/shiftytr/proxy-list/master/proxy.txt'],
+        'type': 'module',
+        'moduleName': 'txtList_Praser',
+    },
+    {
+        'urls': ['https://www.xroxy.com/proxyrss.xml'],
         'type': 'xpath',
-        'pattern': ".//*[@id='main']/div/div[1]/table/tr[position()>1]",
-        'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[4]', 'protocol': ''}
+        'pattern': ".//proxy[position()>1]",
+        'position': {'ip': './ip', 'port': './port', 'type': '', 'protocol': ''}
+    },
+    {
+        'urls': ['https://www.89ip.cn/index_%s.html' % n for n in range(1, 21)],
+        'type': 'xpath',
+        'pattern': ".//*[@class='layui-form']/table/tbody/tr",
+        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
+    },
+    {
+        'urls': ['https://www.89ip.cn/index_%s.html' % n for n in range(1, 21)],
+        'type': 'xpath',
+        'pattern': ".//*[@class='layui-form']/table/tbody/tr",
+        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
+    },
+    {
+        'urls': ['http://proxylist.fatezero.org/proxy.list'],
+        'type': 'module',
+        'moduleName': 'xmlList_Praser',
+    },
+    # ----
+    {
+        'urls': ['http://www.66ip.cn/%s.html' % n for n in ['index'] + list(range(2, 3))],
+        'type': 'xpath',
+        'pattern': ".//*[@id='main']/div[1]/div[2]//tbody/tr",
+        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
     },
     {
         'urls': ['http://www.66ip.cn/areaindex_%s/%s.html' % (m, n) for m in range(1, 35) for n in range(1, 10)],
@@ -24,66 +62,11 @@ parserList = [
         'pattern': ".//*[@id='footer']/div/table/tr[position()>1]",
         'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[4]', 'protocol': ''}
     },
-    {
-        'urls': ['http://cn-proxy.com/', 'http://cn-proxy.com/archives/218'],
-        'type': 'xpath',
-        'pattern': ".//table[@class='sortable']/tbody/tr",
-        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
-
-    },
-    {
-        'urls': ['http://www.mimiip.com/gngao/%s' % n for n in range(1, 10)],
-        'type': 'xpath',
-        'pattern': ".//table[@class='list']/tr",
-        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
-
-    },
     ## 自定义
-    {
-        'urls': ['http://www.data5u.com/free/%s/index.shtml' % m for m in ['gwgn', 'gwpt', 'gnpt', 'gnpt']],
-        'type': 'xpath',
-        'pattern': ".//li[contains(@style,'text-align')]//ul[position()>1]",
-        'position': {'ip': './span[1]/li', 'port': './span[2]/li', 'type': './span[3]/li/a',
-                     'protocol': './span[4]/li/a'}  #
-    },
-    {
-        'urls': ['https://31f.cn/http-proxy/', 'https://31f.cn/https-proxy/'],
-        'type': 'xpath',
-        'pattern': ".//table[@class='table table-striped']//tr[position()>1]",
-        'position': {'ip': './td[2]', 'port': './td[3]'}
-    },
-    {
-        'urls': ['http://www.goubanjia.com/'],
-        'type': 'xpath',
-        'pattern': ".//td[@class='ip']",
-        'position': {
-            'ip': "//*[not(contains(@style, 'display: none'))"
-                  "and not(contains(@style, 'display:none'))and not(contains(@class, 'port'))]/text()",
-            'port': './/span[contains(@class, "port")]'
-        }
-    },
     {
         'urls': ['http://www.ip3366.net/free/?stype=%s&page=%s' % (m, n) for m in [1, 2, 3, 4] for n in range(1, 8)],
         'type': 'xpath',
         'pattern': ".//div[@id='list']//tr",
-        'position': {'ip': './td[1]', 'port': './td[2]'}
-    },
-    {
-        'urls': ['http://www.iphai.com/free/%s' % m for m in ['ng', 'np', 'wg', 'wp']],
-        'type': 'xpath',
-        'pattern': '//div[@class="table-responsive module"]//tr[position()>1]',
-        'position': {'ip': './td[1]', 'port': './td[2]'}
-    },
-    {
-        'urls': ['http://ip.jiangxianli.com/?page=%s' % m for m in range(1, 16)],
-        'type': 'xpath',
-        'pattern': '//table[@class="table table-hover table-bordered table-striped"]//tr[position()>1]',
-        'position': {'ip': './td[2]', 'port': './td[]'}
-    },
-    {
-        'urls': ['http://cn-proxy.com/', 'http://cn-proxy.com/archives/218'],
-        'type': 'xpath',
-        'pattern': './/table[@class="sortable"]//tr[position()>1]',
         'position': {'ip': './td[1]', 'port': './td[2]'}
     },
     {
@@ -100,7 +83,6 @@ parserList = [
         'moduleName': 'proxy_listPraser',
         'pattern': 'Proxy\(.+\)',
         'position': {'ip': 0, 'port': -1, 'type': -1, 'protocol': 2}
-
     },
     {
         'urls': ['http://incloak.com/proxy-list/%s#list' % n for n in
@@ -124,100 +106,78 @@ parserList = [
         'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[3]', 'protocol': './td[4]'}
     },
     {
-        'urls': ['http://www.cz88.net/proxy/%s' % m for m in
-                 ['index.shtml'] + ['http_%s.shtml' % n for n in range(2, 11)]],
+        'urls': ['http://www.ip3366.net/?stype=1&page=%s' % n for n in range(1, 7)],
         'type': 'xpath',
-        'pattern': ".//*[@id='boxright']/div/ul/li[position()>1]",
-        'position': {'ip': './div[1]', 'port': './div[2]', 'type': './div[3]', 'protocol': ''}
-
+        'pattern': ".//div[@id='list']//tr",
+        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
     },
     {
-        'urls': ['http://www.ip181.com/daili/%s.html' % n for n in range(1, 11)],
+        'urls': ['https://ip.ihuan.me/' % n for n in range(1, 7)],
         'type': 'xpath',
-        'pattern': ".//div[@class='row']/div[3]/table/tbody/tr[position()>1]",
-        'position': {'ip': './td[1]', 'port': './td[2]', 'type': './td[3]', 'protocol': './td[4]'}
-
-    },
-    {
-        'urls': ['http://www.xicidaili.com/%s/%s' % (m, n) for m in ['nn', 'nt', 'wn', 'wt'] for n in range(1, 8)],
-        'type': 'xpath',
-        'pattern': ".//*[@id='ip_list']/tr[position()>1]",
-        'position': {'ip': './td[2]', 'port': './td[3]', 'type': './td[5]', 'protocol': './td[6]'}
-    },
-    {
-        'urls': ['http://www.cnproxy.com/proxy%s.html' % i for i in range(1, 11)],
-        'type': 'module',
-        'moduleName': 'CnproxyPraser',
-        'pattern': r'<tr><td>(\d+\.\d+\.\d+\.\d+)<SCRIPT type=text/javascript>document.write\(\"\:\"(.+)\)</SCRIPT></td><td>(HTTP|SOCKS4)\s*',
-        'position': {'ip': 0, 'port': 1, 'type': -1, 'protocol': 2}
+        'pattern': ".//div[@id='list']//tr",
+        'position': {'ip': './td[1]', 'port': './td[2]', 'type': '', 'protocol': ''}
     },
 ]
 
 
-'''
-数据库的配置
-'''
+# 数据库的配置
 DB_CONFIG = {
-
     # 'DB_CONNECT_TYPE': 'sqlalchemy',
     # 'DB_CONNECT_STRING': 'mysql+pymysql://root:mysql@localhost/proxy?charset=utf8mb4'
-    #
-    'DB_CONNECT_TYPE': 'pymongo',  # 'pymongo'sqlalchemy;redis
-    # 'DB_CONNECT_STRING': 'mongodb://localhost:27017/'
-    'DB_CONNECT_STRING': 'mongodb://www.zbuhui.top:27017/'
+
+    'DB_CONNECT_TYPE': 'pymongo',
+    'DB_CONNECT_STRING': 'mongodb://root:mongo@192.168.0.99:27017/'
 
     # 'DB_CONNECT_STRING': 'sqlite:///' + os.path.dirname(__file__) + '/data/proxy.db'
     # DB_CONNECT_STRING : 'mysql+mysqldb://root:root@localhost/proxy?charset=utf8'
 
     # 'DB_CONNECT_TYPE': 'redis',  # 'pymongo'sqlalchemy;redis
-    # 'DB_CONNECT_STRING': 'redis://localhost:6379/3',
+    # 'DB_CONNECT_STRING': 'redis://192.168.0.99:6379/0',
 }
 
-CHINA_AREA = ['河北', '山东', '辽宁', '黑龙江', '吉林'
-    , '甘肃', '青海', '河南', '江苏', '湖北', '湖南',
-              '江西', '浙江', '广东', '云南', '福建',
-              '台湾', '海南', '山西', '四川', '陕西',
-              '贵州', '安徽', '重庆', '北京', '上海', '天津', '广西', '内蒙', '西藏', '新疆', '宁夏', '香港', '澳门']
+CHINA_AREA = ['河北', '山东', '辽宁', '黑龙江', '吉林', '甘肃', '青海', '河南', '江苏', '湖北', '湖南','江西',
+              '浙江', '广东', '云南', '福建', '台湾', '海南', '山西', '四川', '陕西','贵州', '安徽', '重庆',
+              '北京', '上海', '天津', '广西', '内蒙', '西藏', '新疆', '宁夏', '香港', '澳门','中国']
+
 QQWRY_PATH = os.path.dirname(__file__) + "/data/qqwry.dat"
+THREADNUM = 10  # gevent pool的协程数目 5
+API_PORT = 8000  # web服务器的端口
 
-THREADNUM = 5
-API_PORT = 8000
-
-# 默认给抓取的ip分配6分,每次连接失败,减一分,直到分数全部扣完从数据库中删除
-DEFAULT_SCORE = 3
 
 TEST_URL = 'http://ip.chinaz.com/getip.aspx'
 TEST_IP = 'http://httpbin.org/ip'
 TEST_HTTP_HEADER = 'http://httpbin.org/get'
 TEST_HTTPS_HEADER = 'https://httpbin.org/get'
 
-UPDATE_TIME = 10 * 60  # 每x分钟检测一次是否有代理ip失效
-MINNUM = 399  # 当有效的ip值小于一个时 需要启动爬虫进行爬取
-TIMEOUT = 5  # socket延时
-# 默认给抓取的ip分配3分,每次连接失败,减一分,直到分数全部扣完从数据库中删除
-DEFAULT_SCORE = 3
-
-# save速度小于6的ip
-FILTER_SPEED = 6
-
+UPDATE_TIME = 30 * 60  # 每半个小时检测一次是否有代理ip失效
+MINNUM = 200        # 当有效的ip值小于200时 需要启动爬虫进行爬取
+TIMEOUT = 5         # socket超时
+FILTER_SPEED = 3   # 国内save速度小于3s的ip
+FOREIGN_FILTER_SPEED = 9   # 国外save速度小于9s的ip
+DEFAULT_SCORE = 3   # 默认给抓取的ip分配3分,每次连接失败,减一分,直到分数全部扣完从数据库中删除
 
 # CHECK_PROXY变量是为了用户自定义检测代理的函数
-# 现在使用检测的网址是httpbin.org,但是即使ip通过了验证和检测# 也只能说明通过此代理ip可以到达httpbin.org,但是不一定能到达用户爬取的网址
+# 现在使用检测的网址是httpbin.org,但是即使ip通过了验证和检测# 也只能说明通过此代理ip可以到达httpbin.org,不一定能到达用户爬取的网址
 # 因此在这个地方用户可以自己添加检测函数,我以百度为访问网址尝试一下# 大家可以看一下Validator.py文件中的baidu_check函数和detect_proxy函数就会明白
 
-# CHECK_PROXY = {'function': 'checkProxy'}  # {'function':'baidu_check'}
-# CHECK_PROXY = {'function':'baidu_check'}
-
 # 设置ip的检查网站和调用函数
-CHECK_PROXY = {'function':'buy_wine'}
-checkUrl = 'https://gzgsv.xpshop.cn'
+CHECK_PROXY = {'function': 'baidu_check'}
+
+checkUrl = 'https://www.baidu.com'
+
 
 '''
 爬虫爬取和检测ip的设置条件,不需要检测ip是否已经存在，因为会定时清理
 '''
+MAX_CHECK_PROCESS = 2  # CHECK_PROXY最大进程数
+MAX_CHECK_CONCURRENT_PER_PROCESS = 30  # CHECK_PROXY时每个进程的最大并发
+TASK_QUEUE_SIZE = 50  # 任务队列SIZE
+MAX_DOWNLOAD_CONCURRENT = 10  # 从免费代理网站下载时的最大并发
+CHECK_WATI_TIME = 1  # 进程数达到上限时的等待时间
+HTTPX_CHECK_URL_PROCESS = 30
+
 # 重试次数
 RETRY_TIME = 3
-
 
 USER_AGENTS = [
     "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; AcooBrowser; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
@@ -266,11 +226,5 @@ def get_header():
     }
 
 
-# 下面配置squid,现在还没实现
+# 下面配置squid,现在还没实现# *wt*
 # SQUID={'path':None,'confpath':'C:/squid/etc/squid.conf'}
-
-MAX_CHECK_PROCESS = 3  # CHECK_PROXY最大进程数
-MAX_CHECK_CONCURRENT_PER_PROCESS = 30  # CHECK_PROXY时每个进程的最大并发
-TASK_QUEUE_SIZE = 50  # 任务队列SIZE
-MAX_DOWNLOAD_CONCURRENT = 3  # 从免费代理网站下载时的最大并发
-CHECK_WATI_TIME = 1  # 进程数达到上限时的等待时间

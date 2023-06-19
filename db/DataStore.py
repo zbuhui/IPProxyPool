@@ -33,26 +33,29 @@ def store_data(queue2, db_proxy_num):
         try:
             proxy = queue2.get(timeout=300)
             if proxy:
-                # print('speed ',proxy['speed'])
-                if proxy['speed'] < config.FILTER_SPEED:
+                # print(f'store_data 检测speed:{proxy},{proxy['speed']}', )
+                flag = False
+                if proxy['area'].strip()[:2] in config.CHINA_AREA:
+                    flag = True if proxy['speed'] < config.FILTER_SPEED else False
+                else:
+                    flag = True if proxy['speed'] < config.FOREIGN_FILTER_SPEED else False
 
-                    proxy['lasttime']=int(time.time())
-                    # print('>>>:',proxy)
+                if flag:
+                    proxy['lasttime'] = int(time.time())
                     sqlhelper.insert(proxy)
                     successNum += 1
             else:
                 failNum += 1
-            str = 'IPProxyPool----->Success ip num :%d,Fail ip num:%d' % (successNum, failNum)
+            str = 'IPProxyPool-----> Success ip num :{}, Fail ip num:{}'.format(successNum, failNum)
             sys.stdout.write(str + "\r")
             sys.stdout.flush()
         except BaseException as e:
             if db_proxy_num.value != 0:
                 successNum += db_proxy_num.value
                 db_proxy_num.value = 0
-                str = 'IPProxyPool----->Success ip num :%d,Fail ip num:%d' % (successNum, failNum)
+                print('store_data e:',e)
+                str = '1 IPProxyPool-----> eSuccess ip num :%d, Fail ip num:%d' % (successNum,failNum)
                 sys.stdout.write(str + "\r")
                 sys.stdout.flush()
                 successNum = 0
                 failNum = 0
-
-

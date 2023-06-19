@@ -1,6 +1,6 @@
 from gevent import monkey
 monkey.patch_all()
-
+import traceback
 import pymongo
 from config import DB_CONFIG, DEFAULT_SCORE
 
@@ -19,11 +19,17 @@ class MongoHelper(ISqlHelper):
         self.client.drop_database(self.db)
 
     def insert(self, value=None):
+
         if value:
-            proxy = dict(lasttime=value['lasttime'], ip=value['ip'], port=value['port'], types=value['types'], protocol=value['protocol'],
-                         country=value['country'],
-                         area=value['area'], speed=value['speed'], score=DEFAULT_SCORE)
-            self.proxys.insert(proxy)
+            try:
+                proxy = dict(lasttime=value['lasttime'], ip=value['ip'], port=value['port'], types=value['types'], protocol=value['protocol'],
+                         country=value['country'], area=value['area'], speed=value['speed'], score=DEFAULT_SCORE)
+
+                self.proxys.insert(proxy)
+            except Exception as e:
+                exstr = traceback.format_exc()
+                print(f'{value}\n 异常堆栈:{e}, 异常信息:{exstr}')
+
 
     def delete(self, conditions=None):
         if conditions:

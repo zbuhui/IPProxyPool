@@ -1,7 +1,7 @@
 chardet==2.3.0
 gevent==1.2.0
-greenlet==0.4.11
 SQLAlchemy==1.1.4
 web.py==0.38
 redis==2.10.5
 psutil
+pymysql==3.5.1

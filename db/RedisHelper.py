@@ -15,17 +15,23 @@ class RedisHelper(ISqlHelper):
         self.index_names = ('types', 'protocol', 'country', 'area', 'score')
         self.redis_url = url or config.DB_CONFIG['DB_CONNECT_STRING'] #'DB_CONNECT_STRING': 'redis://localhost:6379/3',
 
+    def init_db(self, url=None):
+        self.redis = Redis.from_url(url or self.redis_url)
+
+    def drop_db(self):
+        return self.redis.flushdb()
+
     def get_proxy_name(self, ip=None, port=None, protocal=None, proxy=None):
         ip = ip or proxy.ip
         port = port or proxy.port
         protocal = protocal or proxy.protocol
-        print("proxy::{}:{}:{}".format(ip, port, protocal),'get_proxy_name')
+        # print("proxy::{}:{}:{}".format(ip, port, protocal),'get_proxy_name')
         return "proxy::{}:{}:{}".format(ip, port, protocal)
 
     def get_index_name(self, index_name, value=None):
         if index_name == 'score':
             return 'index::score'
-        print("index::{}:{}".format(index_name, value),'get_index_name')
+        # print("index::{}:{}".format(index_name, value),'get_index_name')
         return "index::{}:{}".format(index_name, value)
 
     def get_proxy_by_name(self, name):
@@ -33,11 +39,7 @@ class RedisHelper(ISqlHelper):
         if pd:
             return Proxy(**{k.decode('utf8'): v.decode('utf8') for k, v in pd.items()})
 
-    def init_db(self, url=None):
-        self.redis = Redis.from_url(url or self.redis_url)
 
-    def drop_db(self):
-        return self.redis.flushdb()
 
     def get_keys(self, conditions):
         select_keys = {self.get_index_name(key, conditions[key]) for key in conditions.keys() if
@@ -49,31 +51,34 @@ class RedisHelper(ISqlHelper):
         return []
 
     def insert(self, value):
+        # print('>>>',[value]) #{'ip': '123.163.27.34', 'port': 9999, 'types': 0, 'protocol': 0, 'country': '国内', 'area': '河南省洛阳市 电信', 'speed': 0.52, 'lasttime': 1577450477}
         proxy = Proxy(ip=value['ip'], port=value['port'], types=value['types'], protocol=value['protocol'],
-                      country=value['country'], area=value['area'],
+                      country=value['country'], area=value['area'],lasttime=value['lasttime'],
                       speed=value['speed'], score=value.get('score', config.DEFAULT_SCORE))
-        # print('proxy',proxy)
         mapping = proxy.__dict__
+        # print('mapping',mapping)
         for k in list(mapping.keys()):
             if k.startswith('_'):
                 mapping.pop(k)
         object_name = self.get_proxy_name(proxy=proxy)
-        print("object_name:",object_name)
+        # print("object_name:",object_name)
         # 存结构
         insert_num = self.redis.hmset(object_name, mapping)
         print('insert_num:',insert_num)
         # 创建索引
-        if insert_num > 0:
-            for index_name in self.index_names:
-                print('index_name:',index_name)
-                self.create_index(index_name, object_name, proxy)
+        # if insert_num > 0:
+        #     for index_name in self.index_names:
+        #         # print('index_name:',index_name)
+        #         self.create_index(index_name, object_name, proxy)
+        # print('insert_num',insert_num)
         return insert_num
 
-    def create_index(self, index_name, object_name, proxy):
-        redis_key = self.get_index_name(index_name, getattr(proxy, index_name))
-        if index_name == 'score':
-            return self.redis.zadd(redis_key, object_name, int(proxy.score))
-        return self.redis.sadd(redis_key, object_name)
+    # def create_index(self, index_name, object_name, proxy):
+    #     print(':::object_name',object_name)
+    #     redis_key = self.get_index_name(index_name, getattr(proxy, index_name))
+    #     if index_name == 'score':
+    #         return self.redis.zadd(redis_key, object_name, int(proxy.score))
+    #     return self.redis.sadd(redis_key, object_name)
 
     def delete(self, conditions):
         proxy_keys = self.get_keys(conditions)
@@ -136,9 +141,10 @@ if __name__ == '__main__':
     # # sqlhelper.drop_db()
     # print('All pass.')
     sqlhelper = RedisHelper()
-    sqlhelper.init_db('redis://localhost:6379/11')
-    proxy = {'ip': '192.168.1.1', 'port': 80, 'type': 0, 'protocol': 0, 'country': '中国', 'area': '广州', 'speed': 11.1,'types': 1}
-    assert sqlhelper.insert(proxy) == True
+    sqlhelper.init_db('redis://localhost:6379/12')
+
+    value = {'ip': '223.163.27.34', 'port': 9999, 'types': 0, 'protocol': 0, 'country': '国内', 'area': '河南省洛阳市 电信', 'speed': 0.52, 'lasttime': 1577450477}
+    assert sqlhelper.insert(value) == True
     # assert sqlhelper.get_keys({'types': 1}) == ['proxy::192.168.1.1:80:0', ], sqlhelper.get_keys({'types': 1})
     # assert sqlhelper.update({'types': 1}, {'score': 888}) == 1
     print('All pass.')

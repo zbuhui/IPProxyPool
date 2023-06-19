@@ -1,10 +1,10 @@
 # coding:utf-8
+import httpx
+import asyncio
 from gevent import monkey
 monkey.patch_all()
 import sys
-
 import chardet
-
 import json
 import os
 import gevent
@@ -16,6 +16,8 @@ from multiprocessing import Process, Queue
 import config
 from db.DataStore import sqlhelper
 from util.exception import Test_URL_Fail
+
+
 
 
 def detect_from_db(myip, proxy, proxies_set):
@@ -34,6 +36,61 @@ def detect_from_db(myip, proxy, proxies_set):
             proxy_str = '%s:%s' % (proxy[0], proxy[1])
             proxies_set.add(proxy_str)
 
+
+async def fetch_url(proxy, q2):
+    ip = proxy['ip']
+    port = proxy['port']
+    proxies = {"http://": "http://%s:%s" % (ip, port), "https://": "http://%s:%s" % (ip, port)}
+    # print(f'当前加测：{proxy}')
+    async with httpx.AsyncClient(proxies=proxies, follow_redirects=True) as client:
+
+        try:
+            start = time.time()
+            response = await client.get(config.checkUrl)
+            # print(f'--{proxy}--{response.status_code}')
+        except Exception as e:
+            speed = -1
+            protocol = -1
+            types = -1
+        else:
+            if response.status_code == 200:
+                speed = round(time.time() - start, 2)
+                protocol = 0
+                types = 0
+            else:
+                speed = -1
+                protocol = -1
+                types = -1
+        finally:
+            if protocol >= 0:
+                proxy['protocol'] = protocol
+                proxy['types'] = types
+                proxy['speed'] = speed
+            else:
+                proxy = None
+            q2.put(proxy)
+
+
+async def main(proxys, q2):
+    # start = time.time()
+    tasks = []
+    for proxy in proxys:
+        tasks.append(asyncio.ensure_future(fetch_url(proxy, q2)))
+    results = await asyncio.gather(*tasks)
+    # print("Time Consumed: ", time.time() - start)
+    return results
+
+
+def httpx_validator(q1, q2, myip):
+    tasklist = []
+    while True:
+        for i in range(config.HTTPX_CHECK_URL_PROCESS):
+            proxy = q1.get()
+            tasklist.append(proxy)
+        print('testing..')
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(main(tasklist, q2))
+        tasklist = []
 
 
 def validator(queue1, queue2, myip):
@@ -58,9 +115,12 @@ def validator(queue1, queue2, myip):
             if len(proc_pool) >= config.MAX_CHECK_PROCESS:
                 time.sleep(config.CHECK_WATI_TIME)
                 continue
+
             proxy = queue1.get()
+
             tasklist.append(proxy)
             if len(tasklist) >= config.MAX_CHECK_CONCURRENT_PER_PROCESS:
+
                 p = Process(target=process_start, args=(tasklist, myip, queue2, cntl_q))
                 p.start()
                 proc_pool[p.pid] = p
@@ -89,9 +149,10 @@ def detect_proxy(selfip, proxy, queue2=None):
     ip = proxy['ip']
     port = proxy['port']
     proxies = {"http": "http://%s:%s" % (ip, port), "https": "http://%s:%s" % (ip, port)}
-    protocol, types, speed = getattr(sys.modules[__name__], config.CHECK_PROXY['function'])(selfip, proxies) # checkProxy(selfip, proxies)
-    # getattr(sys.modules[__name__], func_name)的含义便是找到当前文件下名称为func_name的对象（类对象或者函数对象）。
-    # https://blog.csdn.net/lanchunhui/article/details/50110687
+    protocol, types, speed = getattr(sys.modules[__name__], config.CHECK_PROXY['function'])(selfip, proxies) # baidu_check(selfip, proxies)
+    # getattr(sys.modules[__name__], func_name)的含义便是找到当前文件下名称为func_name的对象（类对象或者函数对象）。# https://blog.csdn.net/lanchunhui/article/details/50110687
+    # if not (protocol == -1 and types == -1 and speed == -1):
+    #     print(f'代理检测完成，返回值>>> {protocol}, {types}, {speed}')
 
     if protocol >= 0:
         proxy['protocol'] = protocol
@@ -166,36 +227,6 @@ def _checkHttpProxy(selfip, proxies, isHttp=True):
     except Exception as e:
         return False, types, speed
 
-def buy_wine(selfip, proxies):
-    '''
-    :param
-    :return:
-    '''
-    protocol = -1
-    types = -1
-    speed = -1
-    try:
-        start = time.time()
-        # print('proxies start test>>',proxies)
-        # r = requests.get(url='http://www.gzairports.com', headers=config.get_header(), timeout=config.TIMEOUT, proxies=proxies)
-        r = requests.get(url=config.checkUrl, headers=config.get_header(), timeout=config.TIMEOUT, proxies=proxies)
-        r.encoding = chardet.detect(r.content)['encoding']
-        # print('测试结果:',r.status_code)
-        if r.ok:
-            speed = round(time.time() - start, 2)
-            protocol= 0
-            types=0
-
-        else:
-            speed = -1
-            protocol= -1
-            types=-1
-    except Exception as e:
-            speed = -1
-            protocol = -1
-            types = -1
-    return protocol, types, speed
-
 
 def baidu_check(selfip, proxies):
     '''
@@ -206,40 +237,28 @@ def baidu_check(selfip, proxies):
     protocol = -1
     types = -1
     speed = -1
-    # try:
-    #     #http://ip.chinaz.com/getip.aspx挺稳定，可以用来检测ip
-    #     r = requests.get(url=config.TEST_URL, headers=config.get_header(), timeout=config.TIMEOUT,
-    #                      proxies=proxies)
-    #     r.encoding = chardet.detect(r.content)['encoding']
-    #     if r.ok:
-    #         if r.text.find(selfip)>0:
-    #             return protocol, types, speed
-    #     else:
-    #         return protocol,types,speed
-    #
-    #
-    # except Exception as e:
-    #     return protocol, types, speed
+
     try:
         start = time.time()
-        # print('proxies start test>>',proxies)
-        r = requests.get(url='http://www.gzairports.com', headers=config.get_header(), timeout=config.TIMEOUT, proxies=proxies)
+        # print('proxies start test>>', proxies)
+        url = 'https://www.baidu.com'
+        r = requests.get(url, headers=config.get_header(), timeout=config.TIMEOUT, proxies=proxies)
         r.encoding = chardet.detect(r.content)['encoding']
         # print('测试结果:',r.status_code)
         if r.ok:
             speed = round(time.time() - start, 2)
-            protocol= 0
-            types=0
-
+            protocol = 0
+            types = 0
         else:
             speed = -1
-            protocol= -1
-            types=-1
+            protocol = -1
+            types = -1
     except Exception as e:
             speed = -1
             protocol = -1
             types = -1
     return protocol, types, speed
+
 
 def getMyIP():
     try:
